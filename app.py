@@ -62,6 +62,8 @@ def delete_user(id):
     return jsonify({'result': result})
 
 
+#chdsadsadasdsad
+
 @app.route('/api/user/<id>',methods=['GET'])
 def view_details(id):
     user = mongo.db.user
