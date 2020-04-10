@@ -7,6 +7,8 @@ verify_ssl = true
 
 [packages]
 flask-cors = "*"
+flask-bcrypt = "*"
+flask-jwt-extended = "*"
 
 [requires]
 python_version = "3.8"
