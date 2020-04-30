@@ -401,22 +401,19 @@ def view_cases(id):
     return jsonify(result)
 
 
-    
-
-
-
 #################### only one case
 @app.route('/api/user/cases/case-details/<id>',methods=['GET'])
 def view_case_detail(id):
     user = mongo.db.users
-    result = []
-    result = user.find_one({'cases._id':ObjectId(id)},{"cases.$.": 1, '_id': 0})
-    # print(result)
-    # return jsonify(result)
+    # result = []
+    for field in user.find_one({'cases._id':ObjectId(id)},{"cases.$.": 1, '_id': 0})['cases']:
+        output = {'case_name':field['case_name'],'disease':field['disease'],'temp':field['temp']}
+    print(output)
+    return jsonify(output)
 
-    resp = json.loads(dumps(result))
-    print(resp)
-    return jsonify(resp)
+    # resp = json.loads(dumps(result))
+    # print(resp)
+    # return jsonify(resp)
 
 # @app.route('/api/user/cases/<id>',methods=['GET'])
 # def view_cases(id):
