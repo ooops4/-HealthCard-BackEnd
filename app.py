@@ -165,15 +165,11 @@ def loginDoctor():
     result = ""
 	
     response = users.find_one({'email' : email})
-
+    print(response)
     if response:	
         if bcrypt.check_password_hash(response['password'], password):
-            access_token = create_access_token(identity = {
-			    'first_name': response['first_name'],
-				'last_name': response['last_name'],
-				'email': response['email']}
-				)
-            result = jsonify({"token":access_token})
+            access_token = create_access_token(identity = {'_id': str(response['_id'])}, expires_delta=None)
+            result = jsonify({"token":access_token, "_id": str(response['_id']), 'name':response['first_name'] })
         else:
             result = jsonify({"error":"Invalid username and password"})            
     else:
@@ -190,6 +186,111 @@ def get_all_doctor_list():
         result.append({'_id': str(field['_id']), 'first_name':field['first_name'], 'last_name':field['last_name']})
     # *resp = dumps(users)
     return jsonify(result)
+
+
+
+
+
+###########################################################################################
+########################          HOSPITAL API            #################################
+
+
+########################    REGISTRATION OF NEW HOSPITAL    #################################
+@app.route('/api/hospital/register', methods=['POST'])
+def registerHospital():
+    print(request.get_json())
+    users = mongo.db.doctors
+    hospital_name = request.get_json()['hospital_name']
+    first_name = request.get_json()['first_name']
+    last_name = request.get_json()['last_name']
+    email = request.get_json()['email']
+    password = bcrypt.generate_password_hash(request.get_json()['password']).decode('utf-8')
+    gender = request.get_json()['gender']
+
+    father_name = request.get_json()['father_name']
+    mother_name = request.get_json()['mother_name']
+    contact_number = request.get_json()['contact_number']
+    emergency_contact_number= request.get_json()['emergency_contact_number']
+    age = request.get_json()['age']
+    qualification = request.get_json()['qualification']
+    
+    created = datetime.utcnow()
+
+    user_id = users.insert({
+    'hospital_name': hospital_name,
+	'first_name' : first_name, 
+    'last_name': last_name,
+	'email' : email, 
+	'password' : password,
+    'age' : age,
+    'gender' : gender, 
+	'created' : created, 
+    'father_name':father_name,
+    'mother_name':mother_name,
+    'contact_number':contact_number,
+    'emergency_contact_number':emergency_contact_number,
+    'qualification':qualification
+
+
+
+    # 'address': {
+    #     city: city,
+    #     state:'Gujarat',
+        
+    # },
+	}),
+    print('user_id isisisisisi', user_id)
+    # new_user = users.find_one({'_id' : user_id})
+
+    # result = {'email' : new_user['email'] + ' registered'}
+    # print('result is ',result)
+    return jsonify({'result' : 'user saved'})
+	
+
+##################### LOGIN OF HOSPITAL
+
+@app.route('/api/hospital/login', methods=['POST'])
+def loginHospital():
+    users = mongo.db.doctors
+    email = request.get_json()['email']
+    password = request.get_json()['password']
+    result = ""
+	
+    response = users.find_one({'email' : email})
+
+    if response:	
+        if bcrypt.check_password_hash(response['password'], password):
+            access_token = create_access_token(identity = {
+			    'hospital_name': response['hospital_name'],
+				'email': response['email']}
+				)
+            result = jsonify({"token":access_token})
+        else:
+            result = jsonify({"error":"Invalid username and password"})            
+    else:
+        result = jsonify({"result":"No results found"})
+    return result
+
+
+##################### GETTING ALL THE HOSPITAL ONLY NAMES ##########################
+@app.route('/api/hospital/list', methods=['GET'])
+def get_all_hospital_list():
+    user = mongo.db.hospitals
+    result = []
+    for field in user.find():
+        result.append({'_id': str(field['_id']), 'hospital_name':field['hospital_name']})
+    # *resp = dumps(users)
+    return jsonify(result)
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -263,21 +364,75 @@ def view_details(id):
     return jsonify(output)
     
 
+
+
+
+
+
+
+
+# ############### alll cases of one user
+
+# @app.route('/api/user/cases/<id>',methods=['GET'])
+# def view_cases(id):
+#     user = mongo.db.users
+#     # result = []
+#     result = user.find_one({'_id':ObjectId(id)},{'cases': 1,'_id': 0, 'cases.disease': 1, 'cases._id':str('_id')})  ##  result.append({'_id': str(field['_id']),
+#     # print(result)
+#     # return jsonify(result)
+
+#     resp = json.loads(dumps(result))
+#     print(resp)
+#     return jsonify(resp)
+
+
+
+
+############### alll cases of one user
+
 @app.route('/api/user/cases/<id>',methods=['GET'])
 def view_cases(id):
     user = mongo.db.users
     result = []
-    result = user.find_one({ 
-        "$and": [
-            {"_id": ObjectId(id)}, 
-            {"cases": {"$exists": {"case_name":True}}}
-        ] 
-        })
-    # for field in user.find({'cases':"case_name"}):
-        # result.append({'_id':ObjectId(id), 'case_name':field['case_name']})
+
+    for field in user.find_one({'_id':ObjectId(id)},{'cases': 1,'_id': 0, 'cases.disease': 1, 'cases._id':1})['cases']:
+        result.append({'_id':str(field['_id']), 'disease':field['disease']})
+    print(result)
+    return jsonify(result)
+
+
+    
+
+
+
+#################### only one case
+@app.route('/api/user/cases/case-details/<id>',methods=['GET'])
+def view_case_detail(id):
+    user = mongo.db.users
+    result = []
+    result = user.find_one({'cases._id':ObjectId(id)},{"cases.$.": 1, '_id': 0})
+    # print(result)
+    # return jsonify(result)
+
     resp = json.loads(dumps(result))
     print(resp)
     return jsonify(resp)
+
+# @app.route('/api/user/cases/<id>',methods=['GET'])
+# def view_cases(id):
+#     user = mongo.db.users
+#     result = []
+#     result = user.find_one({ 
+#         "$and": [
+#             {"_id": ObjectId(id)}, 
+#             {"cases": {"$exists": {"case_name":True}}}
+#         ] 
+#         })
+    # for field in user.find({'cases':"case_name"}):
+        # result.append({'_id':ObjectId(id), 'case_name':field['case_name']})
+    # resp = json.loads(dumps(result))
+    # print(resp)
+    # return jsonify(resp)
 
 
 
