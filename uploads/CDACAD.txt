@@ -1,0 +1,15 @@
+W3 SCHOOLS MODELS
+//ZING charts//
+safe navigation operator"
+
+
+{$and: [ {"_id": "id"}, {"cases": {$exists: {"case_name": "true"}}}]}
+
+
+doctor@new.com
+Bikram123@
+
+onlogin(){_id:,token,name} => saveData();
+onlogout() => deleteData();
+getData();
+autoAuth()

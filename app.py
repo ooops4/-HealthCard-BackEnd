@@ -1,4 +1,6 @@
-from flask import Flask, jsonify, request, json
+import os
+import upload
+from flask import Flask, jsonify, request, json, redirect
 from flask_pymongo  import PyMongo
 from bson.json_util import dumps
 import json
@@ -9,11 +11,16 @@ from datetime import datetime
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager
 from flask_jwt_extended import (create_access_token, create_refresh_token, jwt_required, jwt_refresh_token_required, get_jwt_identity, get_raw_jwt)
+import urllib.request
+from werkzeug.utils import secure_filename
+
+
 
 app=Flask(__name__)
 
 app.config['MONGO_URI']="mongodb://localhost:27017/test123"
 app.config['JWT_SECRET_KEY'] = "secretkey"
+UPLOAD_FOLDER = 'C:/Users/Blaxtation/Desktop/backend/uploads/'
 
 mongo = PyMongo(app)
 bcrypt = Bcrypt(app)
@@ -445,6 +452,50 @@ def view_case_detail(id):
     
     # return jsonify(result)
  
+
+
+
+ ##########################################################################################################
+
+ #######################          UPLOAD         ##########################
+
+
+
+
+ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
+
+def allowed_file(filename):
+	return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/api/file-upload', methods=['POST'])
+def upload_file():
+	# check if the post request has the file part
+	if 'file' not in request.files:
+		resp = jsonify({'message' : 'No file part in the request'})
+		resp.status_code = 400
+		return resp
+	file = request.files['file']
+	if file.filename == '':
+		resp = jsonify({'message' : 'No file selected for uploading'})
+		resp.status_code = 400
+		return resp
+	if file and allowed_file(file.filename):
+		filename = secure_filename(file.filename)
+		file.save(os.path.join('C:/Users/Blaxtation/Desktop/backend/uploads', filename))
+		# save_filename = (UPLOAD_FOLDER+filename)
+		resp = jsonify({'message' : 'File successfully uploaded'})
+		resp.status_code = 201
+		return resp
+
+    
+      
+        
+	else:
+		resp = jsonify({'message' : 'Allowed file types are txt, pdf, png, jpg, jpeg, gif'})
+		resp.status_code = 400
+		return resp
+
+
 
 
 @app.errorhandler(404)
