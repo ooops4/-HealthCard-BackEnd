@@ -4,6 +4,7 @@ from flask import Flask, jsonify, request, json, redirect
 from flask_pymongo  import PyMongo
 from bson.json_util import dumps
 import json
+# import time
 from bson.objectid import ObjectId
 from werkzeug.security import generate_password_hash,check_password_hash
 from flask_cors import CORS, cross_origin
@@ -20,7 +21,7 @@ app=Flask(__name__)
 
 app.config['MONGO_URI']="mongodb://localhost:27017/test123"
 app.config['JWT_SECRET_KEY'] = "secretkey"
-UPLOAD_FOLDER = 'C:/Users/Blaxtation/Desktop/backend/uploads/'
+UPLOAD_FOLDER = 'assets/uploads/'
 
 mongo = PyMongo(app)
 bcrypt = Bcrypt(app)
@@ -32,25 +33,48 @@ CORS(app)
 ########################            ADMIN API             #################################
 
 
-########################       REGISTRATION OF ADMIN      #################################
+########################       REGISTRATION OF USERS      #################################
 
 @app.route('/api/register', methods=['POST'])
 def registerAdmin():
-    print(request.get_json())
-    users = mongo.db.admin
-    first_name = request.get_json()['first_name']
-    last_name = request.get_json()['last_name']
-    email = request.get_json()['email']
-    password = bcrypt.generate_password_hash(request.get_json()['password']).decode('utf-8')
-    gender = request.get_json()['gender']
+    # check if the post request has the file part
+    if 'profile_photo' not in request.files:
+        resp = jsonify({'message' : 'No file part in the request'})
+        resp.status_code = 400
+        return resp
+    file = request.files['profile_photo']
+    if file.filename == '':
+        resp = jsonify({'message' : 'No file selected for uploading'})
+        resp.status_code = 400
+        return resp
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        # dt = str(datetime.utcnow())
+        # filenameplusdate = str(dt+filename)
+        file.save(os.path.join('C:/Users/Blaxtation/Desktop/frontend/HealthCard/src/assets/uploads', filename))
+        save_filename = (UPLOAD_FOLDER+filename)
+        resp = jsonify({'message' : 'File successfully uploaded'})
+        # def savefilenametodatabase():
+        #     location = mongo.db.users
 
-    father_name = request.get_json()['father_name']
-    mother_name = request.get_json()['mother_name']
-    contact_number = request.get_json()['contact_number']
-    emergency_contact_number= request.get_json()['emergency_contact_number']
-    age = request.get_json()['age']
+        resp.status_code = 201
+
+    users = mongo.db.users
+    first_name = request.form['first_name']
+    last_name = request.form['last_name']
+    email = request.form['email']
+    password = bcrypt.generate_password_hash(request.form['password']).decode('utf-8')
+    gender = request.form['gender']
+
+    father_name = request.form['father_name']
+    mother_name = request.form['mother_name']
+    contact_number = request.form['contact_number']
+    emergency_contact_number= request.form['emergency_contact_number']
+    age = request.form['age']
+    # profile_photo = save_filename
     
     created = datetime.utcnow()
+    print(created)
 
     user_id = users.insert({
 	'first_name' : first_name, 
@@ -63,7 +87,11 @@ def registerAdmin():
     'father_name':father_name,
     'mother_name':mother_name,
     'contact_number':contact_number,
-    'emergency_contact_number':emergency_contact_number
+    'emergency_contact_number':emergency_contact_number,
+    'profile_photo':save_filename,
+    'cases': {
+    }
+
 
 
 
@@ -237,6 +265,8 @@ def registerHospital():
     'contact_number':contact_number,
     'emergency_contact_number':emergency_contact_number,
     'qualification':qualification
+    
+
 
 
 
@@ -312,7 +342,7 @@ def get_all_users():
     return jsonify(result)
 
 
-# #adding new user
+    # #adding new user
 # @app.route('/api/users', methods=['POST'])
 # def add_user():
   
@@ -364,7 +394,8 @@ def view_details(id):
         'contact_number':field['contact_number'],        
         'emergency_contact_number':field['emergency_contact_number'],
         'gender':field['gender'],
-        'email':field['email']}
+        'email':field['email'],
+        'profile_photo':field['profile_photo']}
 
     else:
         output = "No such name"
@@ -484,6 +515,9 @@ def upload_file():
 		file.save(os.path.join('C:/Users/Blaxtation/Desktop/backend/uploads', filename))
 		# save_filename = (UPLOAD_FOLDER+filename)
 		resp = jsonify({'message' : 'File successfully uploaded'})
+        # def savefilenametodatabase():
+        #     location = mongo.db.users
+
 		resp.status_code = 201
 		return resp
 
@@ -496,7 +530,22 @@ def upload_file():
 		return resp
 
 
+@app.route('/api/count', methods=['GET'])
+def get_all_counts():
+    result = []
+    users_count = mongo.db.users.count()
+    doctors_count = mongo.db.doctors.count()
+    hospitals_count = mongo.db.hospitals.count()
+    clinics_count = mongo.db.clinics.count()
+    medical_store_count = mongo.db.medicalstores.count()
 
+    result={'users_count':users_count,
+            'hospitals_count':hospitals_count,
+            'doctors_count':doctors_count,
+            'clinics_count':clinics_count,
+            'medical_store_count':medical_store_count}
+    
+    return jsonify(result)
 
 @app.errorhandler(404)
 def not_found(error=None):
