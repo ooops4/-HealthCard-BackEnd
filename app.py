@@ -74,9 +74,9 @@ def loginUser():
             })
             result = jsonify({"token":access_token})
         else:
-            result = jsonify({"error":"Invalid username and password"})            
+            result = jsonify({"error":"Invalid Email or Password"})            
     else:
-        result = jsonify({"result":"No results found"})
+        result = jsonify({"result":"Invalid Email or Password"})
     return result
 
 
@@ -103,9 +103,9 @@ def loginAdmin():
 				)
             result = jsonify({"token":access_token})
         else:
-            result = jsonify({"error":"Invalid email and password"})            
+            result = jsonify({"error":"Invalid Email or Pssword"})            
     else:
-        result = jsonify({"result":"Invalid email and password"})
+        result = jsonify({"result":"Invalid Email or Password"})
     return result
 
 
@@ -279,6 +279,29 @@ def registerClinic():
     return jsonify({'result' : 'user saved'})
 
 
+
+#########################    CLINIC LOGIN       ##########################
+
+@app.route('/api/clinic/login', methods=['POST'])
+def loginClinic():
+    users = mongo.db.clinics
+    email = request.get_json()['email']
+    password = request.get_json()['password']
+    result = ""
+	
+    response = users.find_one({'email' : email})
+    print(response)
+    if response:	
+        if bcrypt.check_password_hash(response['password'], password):
+            access_token = create_access_token(identity = {'_id': str(response['_id'])}, expires_delta=None)
+            result = jsonify({"token":access_token, "_id": str(response['_id']), 'clinic_name':response['clinic_name'] })
+        else:
+            result = jsonify({"error":"Invalid Email or Password"})            
+    else:
+        result = jsonify({"result":"Invalid Email or Password"})
+    return result
+
+
 ##################### GETTING ALL THE CLINICS NAMES ONLY  ##########################
 @app.route('/api/clinics/clinic-list', methods=['GET'])
 def get_all_clinics_list():
@@ -411,9 +434,9 @@ def loginDoctor():
             access_token = create_access_token(identity = {'_id': str(response['_id'])}, expires_delta=None)
             result = jsonify({"token":access_token, "_id": str(response['_id']), 'doctor_name':response['first_name'] })
         else:
-            result = jsonify({"error":"Invalid username and password"})            
+            result = jsonify({"error":"Invalid Email or Password"})            
     else:
-        result = jsonify({"result":"Invalid email or password"})
+        result = jsonify({"result":"Invalid Email or Password"})
     return result
 
 
@@ -438,58 +461,70 @@ def get_all_doctor_list():
 ########################    REGISTRATION OF NEW HOSPITAL    #################################
 @app.route('/api/hospital/register', methods=['POST'])
 def registerHospital():
-    print(request.get_json())
-    users = mongo.db.doctors
-    hospital_name = request.get_json()['hospital_name']
-    first_name = request.get_json()['first_name']
-    last_name = request.get_json()['last_name']
-    email = request.get_json()['email']
-    password = bcrypt.generate_password_hash(request.get_json()['password']).decode('utf-8')
-    gender = request.get_json()['gender']
+    # check if the post request has the file part
+    if 'hospital_document' not in request.files:
+        resp = jsonify({'message' : 'No file part in the request'})
+        resp.status_code = 400
+        return resp
+    file = request.files['hospital_document']
+    if file.filename == '':
+        resp = jsonify({'message' : 'No file selected for uploading'})
+        resp.status_code = 400
+        return resp
+    if file and allowed_file_for_clinics(file.filename):
+        filename = secure_filename(file.filename)
+        file.save(os.path.join('C:/Users/Blaxtation/Desktop/backend/uploads/hospitalsregistration', filename))
+        save_filename = ('http://127.0.0.1:5000/uploads/hospitalsregistration/'+filename)
+        print(save_filename)
+        resp = jsonify({'message' : 'File successfully uploaded'})
+        resp.status_code = 201
 
-    father_name = request.get_json()['father_name']
-    mother_name = request.get_json()['mother_name']
-    contact_number = request.get_json()['contact_number']
-    emergency_contact_number= request.get_json()['emergency_contact_number']
-    age = request.get_json()['age']
-    qualification = request.get_json()['qualification']
-    
+    hospital = mongo.db.hospitals
+
+    hospital_name = request.form['hospital_name']
+    license_number = request.form['license_number']
+    established_date = request.form['established_date']
+    email = request.form['email']
+    owner_name = request.form['owner_name']
+    password = bcrypt.generate_password_hash(request.form['password']).decode('utf-8')
+    contact_number = request.form['contact_number']
+    emergency_contact_number= request.form['emergency_contact_number']
+    address_street = request.form['street']
+    address_city = request.form['city']
+    address_state = request.form['state']
+    address_pincode = request.form['pincode']
+    address_landmark = request.form['landmark']
     created = datetime.utcnow()
+    print(created)
 
-    user_id = users.insert({
-    'hospital_name': hospital_name,
-	'first_name' : first_name, 
-    'last_name': last_name,
-	'email' : email, 
-	'password' : password,
-    'age' : age,
-    'gender' : gender, 
-	'created' : created, 
-    'father_name':father_name,
-    'mother_name':mother_name,
-    'contact_number':contact_number,
-    'emergency_contact_number':emergency_contact_number,
-    'qualification':qualification
-
-    # 'address': {
-    #     city: city,
-    #     state:'Gujarat',
-        
-    # },
-	}),
+    user_id = hospital.insert_one({
+        'hospital_name' : hospital_name, 
+        'license_number' : license_number, 
+        'established_date' : established_date, 
+        'email' : email, 
+        'owner_name':owner_name,
+        'password' : password,
+        'created' : created, 
+        'contact_number':contact_number,
+        'emergency_contact_number':emergency_contact_number,
+        'hospital_document':save_filename,
+        'address': {
+                    'street':address_street,
+                    'city': address_city,
+                    'state': address_state,
+                    'pincode': address_pincode,
+                    'landmark':address_landmark
+                    }
+        }),
     print('user_id isisisisisi', user_id)
-    # new_user = users.find_one({'_id' : user_id})
-
-    # result = {'email' : new_user['email'] + ' registered'}
-    # print('result is ',result)
     return jsonify({'result' : 'user saved'})
-	
+    
 
-##################### LOGIN OF HOSPITAL
+##################### LOGIN OF HOSPITAL ##################################
 
 @app.route('/api/hospital/login', methods=['POST'])
 def loginHospital():
-    users = mongo.db.doctors
+    users = mongo.db.hospitals
     email = request.get_json()['email']
     password = request.get_json()['password']
     result = ""
@@ -504,9 +539,9 @@ def loginHospital():
 				)
             result = jsonify({"token":access_token})
         else:
-            result = jsonify({"error":"Invalid username and password"})            
+            result = jsonify({"error":"Invalid Email or Password"})            
     else:
-        result = jsonify({"result":"No results found"})
+        result = jsonify({"result":"Invalid Email or Password"})
     return result
 
 
@@ -519,6 +554,327 @@ def get_all_hospital_list():
         result.append({'_id': str(field['_id']), 'hospital_name':field['hospital_name']})
     # *resp = dumps(users)
     return jsonify(result)
+
+
+
+
+
+##################### GETTING ALL THE HOSPITAL DETAILS   ##########################
+@app.route('/api/hospital/<id>',methods=['GET'])
+def view_hospital_details(id):
+    hospital = mongo.db.hospitals
+    field = hospital.find_one({'_id':ObjectId(id)})
+    if field:
+        output={
+                'hospital_name':field['hospital_name'], 
+                'license_number' : field['license_number'], 
+                'established_date' : field['established_date'], 
+                'created' : field['created'], 
+                'email' : field['email'], 
+                'owner_name' : field['owner_name'], 
+                'contact_number':field['contact_number'],
+                'emergency_contact_number':field['emergency_contact_number'],
+                'hospital_document':field['hospital_document'],
+                'street':field['address']['street'],
+                'city': field['address']['city'],
+                'state': field['address']['state'],
+                'pincode': field['address']['pincode'],
+                'landmark': field['address']['landmark']
+                }
+
+    else:
+        output = "No such Clinic Found"
+    print(output)
+    return jsonify(output)
+
+
+
+
+
+
+
+
+
+###########################################################################################
+########################          LABORATORY API            #################################
+
+
+########################    REGISTRATION OF NEW LABORATORY    #################################
+@app.route('/api/laboratory/register', methods=['POST'])
+def registerLaboratory():
+    # check if the post request has the file part
+    if 'laboratory_document' not in request.files:
+        resp = jsonify({'message' : 'No file part in the request'})
+        resp.status_code = 400
+        return resp
+    file = request.files['laboratory_document']
+    if file.filename == '':
+        resp = jsonify({'message' : 'No file selected for uploading'})
+        resp.status_code = 400
+        return resp
+    if file and allowed_file_for_clinics(file.filename):
+        filename = secure_filename(file.filename)
+        file.save(os.path.join('C:/Users/Blaxtation/Desktop/backend/uploads/laboratoryregistration', filename))
+        save_filename = ('http://127.0.0.1:5000/uploads/laboratoryregistration/'+filename)
+        print(save_filename)
+        resp = jsonify({'message' : 'File successfully uploaded'})
+        resp.status_code = 201
+
+    laboratory = mongo.db.laboratory
+
+    laboratory_name = request.form['laboratory_name']
+    license_number = request.form['license_number']
+    established_date = request.form['established_date']
+    email = request.form['email']
+    owner_name = request.form['owner_name']
+    password = bcrypt.generate_password_hash(request.form['password']).decode('utf-8')
+    contact_number = request.form['contact_number']
+    emergency_contact_number= request.form['emergency_contact_number']
+    address_street = request.form['street']
+    address_city = request.form['city']
+    address_state = request.form['state']
+    address_pincode = request.form['pincode']
+    address_landmark = request.form['landmark']
+    created = datetime.utcnow()
+    print(created)
+
+    user_id = laboratory.insert_one({
+        'laboratory_name' : laboratory_name, 
+        'license_number' : license_number, 
+        'established_date' : established_date, 
+        'email' : email, 
+        'owner_name':owner_name,
+        'password' : password,
+        'created' : created, 
+        'contact_number':contact_number,
+        'emergency_contact_number':emergency_contact_number,
+        'laboratory_document':save_filename,
+        'address': {
+                    'street':address_street,
+                    'city': address_city,
+                    'state': address_state,
+                    'pincode': address_pincode,
+                    'landmark':address_landmark
+                    }
+        }),
+    print('user_id isisisisisi', user_id)
+    return jsonify({'result' : 'user saved'})
+    
+
+##################### LOGIN OF LABORATORY ##################################
+
+@app.route('/api/laboratory/login', methods=['POST'])
+def loginLaboratory():
+    users = mongo.db.laboratory
+    email = request.get_json()['email']
+    password = request.get_json()['password']
+    result = ""
+	
+    response = users.find_one({'email' : email})
+
+    if response:	
+        if bcrypt.check_password_hash(response['password'], password):
+            access_token = create_access_token(identity = {
+			    'laboratory_name': response['laboratory_name'],
+				'email': response['email']}
+				)
+            result = jsonify({"token":access_token})
+        else:
+            result = jsonify({"error":"Invalid Email or Password"})            
+    else:
+        result = jsonify({"result":"Invalid Email or Password"})
+    return result
+
+
+##################### GETTING ALL THE LABORATORY ONLY NAMES ##########################
+@app.route('/api/laboratory/laboratory-list', methods=['GET'])
+def get_all_laboratory_list():
+    user = mongo.db.laboratory
+    result = []
+    for field in user.find():
+        result.append({'_id': str(field['_id']), 'laboratory_name':field['laboratory_name']})
+    # *resp = dumps(users)
+    print(result)
+    return jsonify(result)
+
+
+
+
+
+##################### GETTING ALL THE LABORATORY DETAILS   ##########################
+@app.route('/api/laboratory/<id>',methods=['GET'])
+def view_laboratory_details(id):
+    onelaboratory = mongo.db.laboratory
+    field = onelaboratory.find_one({'_id':ObjectId(id)})
+    if field:
+        output={
+                'laboratory_name':field['laboratory_name'], 
+                'license_number' : field['license_number'], 
+                'established_date' : field['established_date'], 
+                'created' : field['created'], 
+                'email' : field['email'], 
+                'owner_name' : field['owner_name'], 
+                'contact_number':field['contact_number'],
+                'emergency_contact_number':field['emergency_contact_number'],
+                'laboratory_document':field['laboratory_document'],
+                'street':field['address']['street'],
+                'city': field['address']['city'],
+                'state': field['address']['state'],
+                'pincode': field['address']['pincode'],
+                'landmark': field['address']['landmark']
+                }
+
+    else:
+        output = "No such Clinic Found"
+    print(output)
+    return jsonify(output)
+
+
+
+
+
+
+
+
+
+
+
+###########################################################################################
+########################          MEDICAL API            #################################
+
+
+########################    REGISTRATION OF NEW MEDICAL    #################################
+@app.route('/api/medical/register', methods=['POST'])
+def registermedical():
+    # check if the post request has the file part
+    if 'medical_document' not in request.files:
+        resp = jsonify({'message' : 'No file part in the request'})
+        resp.status_code = 400
+        return resp
+    file = request.files['medical_document']
+    if file.filename == '':
+        resp = jsonify({'message' : 'No file selected for uploading'})
+        resp.status_code = 400
+        return resp
+    if file and allowed_file_for_clinics(file.filename):
+        filename = secure_filename(file.filename)
+        file.save(os.path.join('C:/Users/Blaxtation/Desktop/backend/uploads/medicalregistration', filename))
+        save_filename = ('http://127.0.0.1:5000/uploads/medicalregistration/'+filename)
+        print(save_filename)
+        resp = jsonify({'message' : 'File successfully uploaded'})
+        resp.status_code = 201
+
+    medical = mongo.db.medicals
+
+    medical_name = request.form['medical_name']
+    license_number = request.form['license_number']
+    established_date = request.form['established_date']
+    email = request.form['email']
+    owner_name = request.form['owner_name']
+    password = bcrypt.generate_password_hash(request.form['password']).decode('utf-8')
+    contact_number = request.form['contact_number']
+    emergency_contact_number= request.form['emergency_contact_number']
+    address_street = request.form['street']
+    address_city = request.form['city']
+    address_state = request.form['state']
+    address_pincode = request.form['pincode']
+    address_landmark = request.form['landmark']
+    created = datetime.utcnow()
+    print(created)
+
+    user_id = medical.insert_one({
+        'medical_name' : medical_name, 
+        'license_number' : license_number, 
+        'established_date' : established_date, 
+        'email' : email, 
+        'owner_name':owner_name,
+        'password' : password,
+        'created' : created, 
+        'contact_number':contact_number,
+        'emergency_contact_number':emergency_contact_number,
+        'medical_document':save_filename,
+        'address': {
+                    'street':address_street,
+                    'city': address_city,
+                    'state': address_state,
+                    'pincode': address_pincode,
+                    'landmark':address_landmark
+                    }
+        }),
+    print('user_id isisisisisi', user_id)
+    return jsonify({'result' : 'user saved'})
+    
+
+##################### LOGIN OF MEDICAL ##################################
+
+@app.route('/api/medical/login', methods=['POST'])
+def loginmedical():
+    users = mongo.db.medicals
+    email = request.get_json()['email']
+    password = request.get_json()['password']
+    result = ""
+	
+    response = users.find_one({'email' : email})
+
+    if response:	
+        if bcrypt.check_password_hash(response['password'], password):
+            access_token = create_access_token(identity = {
+			    'medical_name': response['medical_name'],
+				'email': response['email']}
+				)
+            result = jsonify({"token":access_token})
+        else:
+            result = jsonify({"error":"Invalid Email or Password"})            
+    else:
+        result = jsonify({"result":"Invalid Email or Password"})
+    return result
+
+
+##################### GETTING ALL THE MEDICAL ONLY NAMES ##########################
+@app.route('/api/medical/list', methods=['GET'])
+def get_all_medical_list():
+    user = mongo.db.medicals
+    result = []
+    for field in user.find():
+        result.append({'_id': str(field['_id']), 'medical_name':field['medical_name']})
+    # *resp = dumps(users)
+    print(result)
+    return jsonify(result)
+
+
+
+
+
+##################### GETTING ALL THE MEDICAL DETAILS   ##########################
+@app.route('/api/medical/<id>',methods=['GET'])
+def view_medical_details(id):
+    medical = mongo.db.medicals
+    field = medical.find_one({'_id':ObjectId(id)})
+    if field:
+        output={
+                'medical_name':field['medical_name'], 
+                'license_number' : field['license_number'], 
+                'established_date' : field['established_date'], 
+                'created' : field['created'], 
+                'email' : field['email'], 
+                'owner_name' : field['owner_name'], 
+                'contact_number':field['contact_number'],
+                'emergency_contact_number':field['emergency_contact_number'],
+                'medical_document':field['medical_document'],
+                'street':field['address']['street'],
+                'city': field['address']['city'],
+                'state': field['address']['state'],
+                'pincode': field['address']['pincode'],
+                'landmark': field['address']['landmark']
+                }
+
+    else:
+        output = "No such Clinic Found"
+    print(output)
+    return jsonify(output)
+
+
+
 
 
 
@@ -755,7 +1111,7 @@ def upload_file():
 		resp.status_code = 400
 		return resp
 
-
+################  DIFFERENT USERS COUNT FOR ADMIN DASHBOARD #####################33
 @app.route('/api/count', methods=['GET'])
 def get_all_counts():
     result = []
@@ -763,15 +1119,31 @@ def get_all_counts():
     doctors_count = mongo.db.doctors.count()
     hospitals_count = mongo.db.hospitals.count()
     clinics_count = mongo.db.clinics.count()
-    medical_store_count = mongo.db.medicalstores.count()
+    medicals_count = mongo.db.medicals.count()
+    laboratory_count = mongo.db.laboratory.count()
 
     result={'users_count':users_count,
             'hospitals_count':hospitals_count,
             'doctors_count':doctors_count,
             'clinics_count':clinics_count,
-            'medical_store_count':medical_store_count}
+            'medicals_count':medicals_count,
+            'laboratory_count':laboratory_count}
     
     return jsonify(result)
+
+
+@app.route('/api/add-cases',methods=['POST'])
+def save_case():
+    print(request.get_json())
+    casess = mongo.db.cases
+    abc = request.get_json()
+
+    casessss = casess.insert_one(abc)
+    print(casessss)
+    return "haksgd"
+
+    
+
 
 @app.errorhandler(404)
 def not_found(error=None):
