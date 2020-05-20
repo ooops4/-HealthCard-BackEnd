@@ -110,7 +110,7 @@ def loginAdmin():
 
 
 
-######################## ADMIN WILL REGISTER - REGISTRATION OF USERS #################################
+######################## ADMIN WILL REGISTER - REGISTRATION OF USERS USER REGISTRATION #################################
 @app.route('/api/register', methods=['POST'])
 def registerUser():
     # check if the post request has the file part
@@ -176,8 +176,6 @@ def registerUser():
         'profile_photo':save_filename,
         'blood_group': blood_group,
         'dob': dob,
-        'cases': {
-                    },
         'marital_status':marital_status,
         'aadhar_number':aadhar_number,
         'address': {
@@ -1132,15 +1130,31 @@ def get_all_counts():
     return jsonify(result)
 
 
-@app.route('/api/add-cases',methods=['POST'])
-def save_case():
+@app.route('/api/add-cases/<id>',methods=['PUT'])
+def save_case(id):
     print(request.get_json())
-    casess = mongo.db.cases
-    abc = request.get_json()
 
-    casessss = casess.insert_one(abc)
-    print(casessss)
-    return "haksgd"
+    casess = mongo.db.users
+    
+    abc = request.get_json()
+    abc["_id"] = ObjectId()
+    # casessss = casess.insert_one(abc)
+    updated = casess.find_one_and_update({'_id': ObjectId(id)}, {'$push':{'cases':abc}},upsert=False)
+    
+
+    print(updated)
+    return jsonify({'result':"SUCCESSFULLY ADDED A NEW CASE"})
+
+
+    #updating by <id> details
+# @app.route('/api/user/<id>', methods=['PUT'])
+# def userss(id):
+#     user=mongo.db.users
+#     # case_title=request.get_json()['case_title']
+#     user.find_one_and_update({'_id': ObjectId(id)}, {'$push':{'cases':{'_id':ObjectId(),"case_name":"Case Blah BLah"}}},upsert=False)
+#     # new_user = user.find_one({'_id': ObjectId(id)})
+#     # result = {'name': new_user['name']}
+#     return jsonify({'result': "Success"})
 
     
 
