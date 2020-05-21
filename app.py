@@ -48,11 +48,10 @@ def loginUser():
     if response:	
         if bcrypt.check_password_hash(response['password'], password):
             access_token = create_access_token(identity = {
+                'user_id': str(response['_id']),
 			    'first_name': response['first_name'],
 				'last_name': response['last_name'],
 				'email': response['email'],
-                'first_name' : response['first_name'], 
-                'last_name' : response['last_name'],
                 'age' : response['age'],
                 'gender' : response['gender'], 
                 'created' : response['created'], 
@@ -78,6 +77,41 @@ def loginUser():
     else:
         result = jsonify({"result":"Invalid Email or Password"})
     return result
+
+#######################         USER DETAILS WITH FULL DETAILS          ###########################################
+
+@app.route('/api/user/<id>',methods=['GET'])
+def view_details(id):
+    user = mongo.db.users
+    field = user.find_one({'_id':ObjectId(id)})
+    if field:
+        output={
+                'user_id':str(field['_id']),
+                'first_name':field['first_name'],
+                'last_name':field['last_name'],
+                'email':field['email'],
+                'age':field['age'],
+                'gender':field['gender'],
+                'father_name':field['father_name'],
+                'mother_name':field['mother_name'],
+                'contact_number':field['contact_number'],        
+                'emergency_contact_number':field['emergency_contact_number'],
+                'profile_photo':field['profile_photo'],
+                'blood_group': field['blood_group'],
+                'dob':field['dob'],
+                'marital_status':field['marital_status'],
+                'aadhar_number':field['aadhar_number'],
+                'street':field['address']['street'],
+                'city': field['address']['city'],
+                'state': field['address']['state'],
+                'pincode': field['address']['pincode'],
+                'landmark': field['address']['landmark']
+                    }
+
+    else:
+        output = "No such name"
+    print(output)        
+    return jsonify(output)    
 
 
 #**********************************************************************************************************************************************************
@@ -351,9 +385,23 @@ def view_clinic_details(id):
 
 
 ########################    REGISTRATION OF NEW DOCTOR    #################################
+
+ALLOWED_EXTENSIONS_DOCTOR_DOCUMENT = set(['pdf'])
+
+def allowed_file_for_doctor_document(filename):
+	return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS_DOCTOR_DOCUMENT
+    
+ALLOWED_EXTENSIONS_DOCTOR_PHOTO = set(['jpeg, jpg, png'])
+
+def allowed_file_for_doctor_photo(filenameofphoto):
+	return '.' in filenameofphoto and filenameofphoto.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS_DOCTOR_PHOTO
+
 @app.route('/api/doctor/register', methods=['POST'])
 def registerDoctor():
+    
     # check if the post request has the file part
+
+
     if 'doctor_document' not in request.files:
         resp = jsonify({'message' : 'No file part in the request'})
         resp.status_code = 400
@@ -363,13 +411,21 @@ def registerDoctor():
         resp = jsonify({'message' : 'No file selected for uploading'})
         resp.status_code = 400
         return resp
-    if file and allowed_file_for_clinics(file.filename):
+    
+    if file and allowed_file_for_doctor_document(file.filename):
         filename = secure_filename(file.filename)
         file.save(os.path.join('C:/Users/Blaxtation/Desktop/backend/uploads/doctorsregistration', filename))
         save_filename = ('http://127.0.0.1:5000/uploads/doctorsregistration/'+filename)
         print(save_filename)
         resp = jsonify({'message' : 'File successfully uploaded'})
         resp.status_code = 201
+    # return uploadPhoto(photo_save_filename)
+
+
+   
+
+
+    
 
     users = mongo.db.doctors
 
@@ -378,6 +434,7 @@ def registerDoctor():
     email = request.form['email']
     password = bcrypt.generate_password_hash(request.form['password']).decode('utf-8')
     gender = request.form['gender']
+    license_number = request.form['license_number']
     dob = request.form['dob']
     age = request.form['age']
     qualification = request.form['qualification']
@@ -387,7 +444,11 @@ def registerDoctor():
     address_city = request.form['city']
     address_state = request.form['state']
     address_pincode = request.form['pincode']
+    DocumentToUpload = save_filename
     address_landmark = request.form['landmark']
+
+
+    
     
     created = datetime.utcnow()
 
@@ -403,7 +464,9 @@ def registerDoctor():
     'emergency_contact_number':emergency_contact_number,
     'qualification':qualification,
     'dob':dob,
-    'doctor_document': save_filename,
+    # 'profile_photo': PhotoToUpload,
+    'doctor_document': DocumentToUpload,
+    'license_number':license_number,
     'address': {
                     'street':address_street,
                     'city': address_city,
@@ -447,6 +510,42 @@ def get_all_doctor_list():
         result.append({'_id': str(field['_id']), 'first_name':field['first_name'], 'last_name':field['last_name']})
     # *resp = dumps(users)
     return jsonify(result)
+
+
+######################## GETTING ALL DOCTOR DETAILS  ####################
+@app.route('/api/doctor/<id>',methods=['GET'])
+def view_doctor_details(id):
+    doctor = mongo.db.doctors
+    field = doctor.find_one({'_id':ObjectId(id)})
+    if field:
+        output={
+                'first_name':field['first_name'], 
+                'last_name' : field['last_name'], 
+                'email' : field['email'], 
+                'dob' : field['dob'], 
+                'license_number' : field['license_number'], 
+                'gender' : field['gender'], 
+                'qualification' : field['qualification'],
+                'contact_number':field['contact_number'],
+                'emergency_contact_number':field['emergency_contact_number'],
+                'doctor_document':field['doctor_document'],
+                'profile_photo':field['profile_photo'],
+                'street':field['address']['street'],
+                'city': field['address']['city'],
+                'state': field['address']['state'],
+                'pincode': field['address']['pincode'],
+                'landmark': field['address']['landmark']
+                }
+
+    else:
+        output = "No such Doctor Found"
+    print(output)
+    return jsonify(output)
+
+
+
+
+
 
 
 
@@ -894,6 +993,7 @@ def get_all_users():
     for field in user.find():
         result.append({'_id': str(field['_id']), 'first_name':field['first_name'], 'last_name':field['last_name']})
     # *resp = dumps(users)
+    print(result)
     return jsonify(result)
 
 
@@ -945,41 +1045,6 @@ def delete_user(id):
     return jsonify({'result': result})
 
 
-#USER DETAILS WITH FULL DETAILS
-
-@app.route('/api/user/<id>',methods=['GET'])
-def view_details(id):
-    user = mongo.db.users
-    field = user.find_one({'_id':ObjectId(id)})
-    if field:
-        output={'first_name':field['first_name'],
-                'last_name':field['last_name'],
-                'email':field['email'],
-                'age':field['age'],
-                'gender':field['gender'],
-                'father_name':field['father_name'],
-                'mother_name':field['mother_name'],
-                'contact_number':field['contact_number'],        
-                'emergency_contact_number':field['emergency_contact_number'],
-                'profile_photo':field['profile_photo'],
-                'blood_group': field['blood_group'],
-                'dob':field['dob'],
-                'marital_status':field['marital_status'],
-                'aadhar_number':field['aadhar_number'],
-                'street':field['address']['street'],
-                'city': field['address']['city'],
-                'state': field['address']['state'],
-                'pincode': field['address']['pincode'],
-                'landmark': field['address']['landmark']
-                    }
-
-    else:
-        output = "No such name"
-    return jsonify(output)
-    
-
-# ############### alll cases of one user
-
 # @app.route('/api/user/cases/<id>',methods=['GET'])
 # def view_cases(id):
 #     user = mongo.db.users
@@ -1013,8 +1078,8 @@ def view_cases(id):
     user = mongo.db.users
     result = []
 
-    for field in user.find_one({'_id':ObjectId(id)},{'cases': 1,'_id': 0, 'cases.disease': 1, 'cases._id':1})['cases']:
-        result.append({'_id':str(field['_id']), 'disease':field['disease']})
+    for field in user.find_one({'_id':ObjectId(id)},{'cases': 1,'_id': 0, 'cases.disease_name': 1, 'cases._id':1})['cases']:
+        result.append({'_id':str(field['_id']), 'disease_name':field['disease_name']})
     print(result)
     return jsonify(result)
 
@@ -1024,10 +1089,14 @@ def view_cases(id):
 def view_case_detail(id):
     user = mongo.db.users
     # result = []
-    for field in user.find_one({'cases._id':ObjectId(id)},{"cases.$.": 1, '_id': 0})['cases']:
-        output = {'case_name':field['case_name'],'disease':field['disease'],'temp':field['temp']}
-    print(output)
-    return jsonify(output)
+    result = user.find_one({'cases._id':ObjectId(id)},{"cases.$.": 1, '_id': 0})['cases']
+        # output = {'disease_name':field['disease_name'],'disease_observation':field['disease_observation']}
+    result = result[0]
+    resp = json.loads(dumps(result))
+
+    print(resp)
+    return jsonify(resp)
+    # result = user.find_one({'cases._id':ObjectId(id)},{"cases.$.": 1, '_id': 0})['cases']
 
     # resp = json.loads(dumps(result))
     # print(resp)
